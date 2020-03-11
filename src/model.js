@@ -20,15 +20,20 @@ const {GObject, GLib, Gio} = imports.gi;
 
 const _propFlags = GObject.ParamFlags.READWRITE | GObject.ParamFlags.CONSTRUCT;
 
+const _groups = {
+  CONTEXT: 'Context',
+  ENV: 'Environment',
+};
+
 const _groupDescriptions = {
     shared: _('List of subsystems shared with the host system'),
     sockets: _('List of well-known sockets available in the sandbox'),
     devices: _('List of devices available in the sandbox'),
     features: _('List of features available to the application'),
     filesystems: _('List of filesystem subsets available to the application'),
+    environment: _('environment'),
 };
 
-var GROUP = 'Context';
 var DELAY = 500;
 
 
@@ -145,6 +150,11 @@ var FlatsealModel = GObject.registerClass({
             '0.6.14',
             _('Other files'),
             _propFlags, ''),
+        'environment-custom': GObject.ParamSpec.string(
+            'environment-custom',
+            '0.4.0',
+            _('environment'),
+            _propFlags, ''),
     },
     Signals: {
         changed: {
@@ -243,22 +253,32 @@ var FlatsealModel = GObject.registerClass({
         return GLib.build_filenamev([this._getBundlePathForAppId(this._appId), 'metadata']);
     }
 
-    static _getPermissionsForPath(path) {
+    static _getPermissionsForEnvironment(keyFile) {
         const list = [];
 
-        if (GLib.access(path, 0) !== 0)
+        if (!keyFile.has_group(_groups.ENV))
             return list;
 
-        const keyFile = new GLib.KeyFile();
-        keyFile.load_from_file(path, 0);
-
-        if (!keyFile.has_group(GROUP))
-            return list;
-
-        const [keys] = keyFile.get_keys(GROUP);
+        const [keys] = keyFile.get_keys(_groups.ENV);
 
         keys.forEach(key => {
-            const values = keyFile.get_value(GROUP, key).split(';');
+            const value = keyFile.get_value(_groups.ENV, key);
+            list.push(`environment=${key}=${value}`);
+        });
+
+        return list;
+    }
+
+    static _getPermissionsForContext(keyFile) {
+        const list = [];
+
+        if (!keyFile.has_group(_groups.CONTEXT))
+            return list;
+
+        const [keys] = keyFile.get_keys(_groups.CONTEXT);
+
+        keys.forEach(key => {
+            const values = keyFile.get_value(_groups.CONTEXT, key).split(';');
             values.forEach(value => {
                 if (value.length === 0)
                     return;
@@ -266,6 +286,21 @@ var FlatsealModel = GObject.registerClass({
                 list.push(`${key}=${value}`);
             });
         });
+
+        return list;
+    }
+
+    static _getPermissionsForPath(path) {
+        var list = [];
+
+        if (GLib.access(path, 0) !== 0)
+            return list;
+
+        const keyFile = new GLib.KeyFile();
+        keyFile.load_from_file(path, 0);
+
+        list = list.concat(this._getPermissionsForContext(keyFile));
+        list = list.concat(this._getPermissionsForEnvironment(keyFile));
 
         return list;
     }
@@ -281,6 +316,16 @@ var FlatsealModel = GObject.registerClass({
     _checkIfChanged() {
         const exists = GLib.access(this._getOverridesPath(), 0) === 0;
         this.emit('changed', exists);
+    }
+
+    static _isOverridenEnv(overrides, permission) {
+        if (!permission.startsWith('environment='))
+            return false;
+
+        const v = permission.split(/(.+)=/)[1];
+        const found = [...overrides].find(o => o.startsWith(v)) !== undefined;
+
+        return found;
     }
 
     static _realIsOverridenPath(overrides, permission) {
@@ -323,6 +368,7 @@ var FlatsealModel = GObject.registerClass({
         /* Remove permission if overriden already */
         const current = new Set(permissions
             .filter(p => !overrides.has(this.constructor._negatePermission(p)))
+            .filter(p => !this.constructor._isOverridenEnv(overrides, p))
             .filter(p => !this.constructor._isOverridenPath(overrides, p)));
 
         /* Add permission if a) not a negation b) doesn't exists */
@@ -337,15 +383,21 @@ var FlatsealModel = GObject.registerClass({
         const keyFile = new GLib.KeyFile();
 
         overrides.forEach(override => {
-            var [key, value] = override.split('=');
+            var [key, value] = override.split(/=(.+)/);
+            var group = _groups.CONTEXT;
+
+            if (key === 'environment') {
+                group = _groups.ENV;
+                [key, value] = value.split('=');
+            }
 
             try {
-                var _value = keyFile.get_value(GROUP, key);
+                var _value = keyFile.get_value(group, key);
                 value = `${_value};${value}`;
             } catch (err) {
                 value = `${value}`;
             }
-            keyFile.set_value(GROUP, key, value);
+            keyFile.set_value(group, key, value);
         });
 
         const [, length] = keyFile.to_data();
@@ -375,7 +427,7 @@ var FlatsealModel = GObject.registerClass({
             if (isText) {
                 value = permissions
                     .filter(p => p.startsWith(`${key}=`))
-                    .map(p => p.split('=')[1])
+                    .map(p => p.split(/=(.+)/)[1])
                     .filter(p => ['home', 'host'].indexOf(p) === -1)
                     .join(';');
             } else {
@@ -420,7 +472,7 @@ var FlatsealModel = GObject.registerClass({
             if (typeof pspec.get_default_value() === 'boolean' && this[attribute]) {
                 selected.add(permission);
             } else if (typeof pspec.get_default_value() === 'string') {
-                const [real_permission] = permission.split('=');
+                const [real_permission] = permission.split(/=(.+)/);
                 var values = this[attribute].split(';');
 
                 values.forEach(value => {
@@ -448,6 +500,7 @@ var FlatsealModel = GObject.registerClass({
             .filter(p => supportedState.has(p) || supportedText.has(p.split('=')[0]))
             .filter(p => !selected.has(p))
             .filter(p => !this.constructor._isOverridenPath(added, p))
+            .filter(p => !p.startsWith('environment'))
             .map(p => this.constructor._negatePermission(p)));
 
         this._setOverrides([...added, ...removed]);

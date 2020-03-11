@@ -3,9 +3,10 @@ const {GLib} = imports.gi;
 const {setup, update, hasOnly} = imports.utils;
 setup();
 
-const {FlatsealModel, DELAY, GROUP} = imports.model;
+const {FlatsealModel, DELAY} = imports.model;
 
-const _totalPermissions = 22;
+const _group = 'Context';
+const _totalPermissions = 23;
 
 const _basicAppId = 'com.test.Basic';
 const _oldAppId = 'com.test.Old';
@@ -214,7 +215,7 @@ describe('Model', function() {
         model.set_property('filesystems-other', 'xdg-downloads:ro');
 
         GLib.timeout_add(GLib.PRIORITY_HIGH, DELAY + 1, () => {
-            expect(hasOnly(_reduceOverride, GROUP, _key, 'xdg-downloads:ro')).toBe(true);
+            expect(hasOnly(_reduceOverride, _group, _key, 'xdg-downloads:ro')).toBe(true);
             done();
             return GLib.SOURCE_REMOVE;
         });
@@ -231,7 +232,7 @@ describe('Model', function() {
         model.set_property('filesystems-other', 'xdg-pictures:rw');
 
         GLib.timeout_add(GLib.PRIORITY_HIGH, DELAY + 1, () => {
-            expect(hasOnly(_increaseOverride, GROUP, _key, 'xdg-pictures:rw')).toBe(true);
+            expect(hasOnly(_increaseOverride, _group, _key, 'xdg-pictures:rw')).toBe(true);
             done();
             return GLib.SOURCE_REMOVE;
         });
@@ -248,7 +249,7 @@ describe('Model', function() {
         model.set_property('filesystems-other', 'xdg-pictures');
 
         GLib.timeout_add(GLib.PRIORITY_HIGH, DELAY + 1, () => {
-            expect(hasOnly(_increaseOverride, GROUP, _key, 'xdg-pictures')).toBe(true);
+            expect(hasOnly(_increaseOverride, _group, _key, 'xdg-pictures')).toBe(true);
             done();
             return GLib.SOURCE_REMOVE;
         });
@@ -265,7 +266,7 @@ describe('Model', function() {
         model.set_property('filesystems-other', '!~/negative');
 
         GLib.timeout_add(GLib.PRIORITY_HIGH, DELAY + 1, () => {
-            expect(hasOnly(_negationOverride, GROUP, _key, '!~/positive')).toBe(true);
+            expect(hasOnly(_negationOverride, _group, _key, '!~/positive')).toBe(true);
             done();
             return GLib.SOURCE_REMOVE;
         });
@@ -282,7 +283,7 @@ describe('Model', function() {
         model.set_property('filesystems-other', '~/positive');
 
         GLib.timeout_add(GLib.PRIORITY_HIGH, DELAY + 1, () => {
-            expect(hasOnly(_negationOverride, GROUP, _key, '~/negative')).toBe(true);
+            expect(hasOnly(_negationOverride, _group, _key, '~/negative')).toBe(true);
             done();
             return GLib.SOURCE_REMOVE;
         });
@@ -299,7 +300,7 @@ describe('Model', function() {
         model.set_property('filesystems-other', '!~/negative;!~/positive');
 
         GLib.timeout_add(GLib.PRIORITY_HIGH, DELAY + 1, () => {
-            expect(hasOnly(_negationOverride, GROUP, _key, '!~/positive')).toBe(true);
+            expect(hasOnly(_negationOverride, _group, _key, '!~/positive')).toBe(true);
             done();
             return GLib.SOURCE_REMOVE;
         });
@@ -316,7 +317,7 @@ describe('Model', function() {
         model.set_property('filesystems-other', '~/negative;~/positive');
 
         GLib.timeout_add(GLib.PRIORITY_HIGH, DELAY + 1, () => {
-            expect(hasOnly(_negationOverride, GROUP, _key, '~/negative')).toBe(true);
+            expect(hasOnly(_negationOverride, _group, _key, '~/negative')).toBe(true);
             done();
             return GLib.SOURCE_REMOVE;
         });
@@ -333,7 +334,7 @@ describe('Model', function() {
         model.set_property('filesystems-other', '');
 
         GLib.timeout_add(GLib.PRIORITY_HIGH, DELAY + 1, () => {
-            expect(hasOnly(_unsupportedOverride, GROUP, _key, '!~/unsupported')).toBe(true);
+            expect(hasOnly(_unsupportedOverride, _group, _key, '!~/unsupported')).toBe(true);
             done();
             return GLib.SOURCE_REMOVE;
         });
