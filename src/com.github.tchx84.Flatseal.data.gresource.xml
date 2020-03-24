@@ -10,6 +10,8 @@
     <file>pathsViewer.ui</file>
     <file>permissionEntryRow.ui</file>
     <file>permissionSwitchRow.ui</file>
+    <file>relativePathRow.ui</file>
+    <file>relativePathsViewer.ui</file>
     <file>window.ui</file>
   </gresource>
 </gresources>

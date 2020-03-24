@@ -12,6 +12,8 @@
     <file>permissionEntryRow.js</file>
     <file>permissionSwitchRow.js</file>
     <file>resetButton.js</file>
+    <file>relativePathRow.js</file>
+    <file>relativePathsViewer.js</file>
     <file>window.js</file>
   </gresource>
 </gresources>

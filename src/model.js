@@ -26,7 +26,12 @@ const _groupDescriptions = {
     devices: _('List of devices available in the sandbox'),
     features: _('List of features available to the application'),
     filesystems: _('List of filesystem subsets available to the application'),
+    persistent: _('List of homedir-relative paths available per-application'),
 };
+
+const _overridenProperties = new Set([
+    'persistent',
+]);
 
 var GROUP = 'Context';
 var DELAY = 500;
@@ -144,6 +149,11 @@ var FlatsealModel = GObject.registerClass({
             'filesystems-other',
             '0.6.14',
             _('Other files'),
+            _propFlags, ''),
+        'persistent-files': GObject.ParamSpec.string(
+            'persistent-files',
+            '0.4.0',
+            _('Files'),
             _propFlags, ''),
     },
     Signals: {
@@ -306,6 +316,13 @@ var FlatsealModel = GObject.registerClass({
                this._realIsOverridenPath(overrides, this._negatePermission(permission));
     }
 
+    static _isOverridenProperty(overrides, permission) {
+        const [_permission] = permission.split('=');
+        if (!_overridenProperties.has(_permission))
+            return false;
+        return [...overrides].find(o => o.startsWith(_permission)) !== undefined;
+    }
+
     static _isNegatedPermission(permission) {
         return permission.indexOf('=!') !== -1;
     }
@@ -316,6 +333,11 @@ var FlatsealModel = GObject.registerClass({
         return permission.replace('=', '=!');
     }
 
+    static _canNegate(permission) {
+        const [_permission] = permission.split('=');
+        return !_overridenProperties.has(_permission);
+    }
+
     _getCurrentPermissions() {
         const permissions = this._getPermissions();
         const overrides = new Set(this._getOverrides());
@@ -323,6 +345,7 @@ var FlatsealModel = GObject.registerClass({
         /* Remove permission if overriden already */
         const current = new Set(permissions
             .filter(p => !overrides.has(this.constructor._negatePermission(p)))
+            .filter(p => !this.constructor._isOverridenProperty(overrides, p))
             .filter(p => !this.constructor._isOverridenPath(overrides, p)));
 
         /* Add permission if a) not a negation b) doesn't exists */
@@ -448,6 +471,7 @@ var FlatsealModel = GObject.registerClass({
             .filter(p => supportedState.has(p) || supportedText.has(p.split('=')[0]))
             .filter(p => !selected.has(p))
             .filter(p => !this.constructor._isOverridenPath(added, p))
+            .filter(p => this.constructor._canNegate(p))
             .map(p => this.constructor._negatePermission(p)));
 
         this._setOverrides([...added, ...removed]);

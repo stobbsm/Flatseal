@@ -19,6 +19,12 @@
 const {GObject, Gtk} = imports.gi;
 
 const {FlatsealPathsViewer} = imports.pathsViewer;
+const {FlatsealRelativePathsViewer} = imports.relativePathsViewer;
+
+const _viewers = {
+    'filesystems': FlatsealPathsViewer,
+    'persistent': FlatsealRelativePathsViewer,
+}
 
 
 var FlatsealPermissionEntryRow = GObject.registerClass({
@@ -36,12 +42,18 @@ var FlatsealPermissionEntryRow = GObject.registerClass({
         this._description.set_text(description);
         this._permission.set_text(permission);
 
-        this._content = new FlatsealPathsViewer();
+        const Class = this.constructor._getViewerClass(permission);
+        this._content = new Class();
         this._content.text = content;
         this._box.add(this._content);
 
         this._button.connect('clicked', this._add.bind(this));
         this.connect('notify::sensitive', this._update.bind(this));
+    }
+
+    static _getViewerClass(permission) {
+        const [_permission] = permission.split('=');
+        return _viewers[_permission];
     }
 
     _add() {

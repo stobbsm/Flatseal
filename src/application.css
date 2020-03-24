@@ -94,9 +94,7 @@
     margin-bottom: 10px;
 }
 
-.permissions .row .content .path.read-only,
-.permissions .row .content .path.create,
-.permissions .row .content .path.read-write  {
+.permissions .row .content .path {
     background-color: @theme_bg_color;
 }
 
