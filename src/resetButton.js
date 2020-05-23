@@ -22,10 +22,10 @@ const {GObject, Gtk} = imports.gi;
 var FlatsealResetButton = GObject.registerClass({
     GTypeName: 'FlatsealResetButton',
 }, class FlatsealResetButton extends Gtk.Button {
-    _init(props) {
-        super._init(props);
+    _init(permissions) {
+        super._init();
+        this._permissions = permissions;
         this._setup();
-        this.connect('notify::sensitive', this._update.bind(this));
     }
 
     /*  XXX Can't move this a .ui file for some reason */
@@ -34,9 +34,12 @@ var FlatsealResetButton = GObject.registerClass({
         this.sensitive = false;
         this.can_focus = false;
         this.visible = true;
+        this.set_action_name('app.reset');
+        this._permissions.connect('changed', this._update.bind(this));
     }
 
-    _update() {
+    _update(permissions, overriden) {
+        this.sensitive = overriden;
         if (this.sensitive)
             this.set_tooltip_text(_('Reset this application permissions'));
         else
